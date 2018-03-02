@@ -5,7 +5,7 @@
   "description": "Improves the Sentry UI for the Browser Error Collection project.",
   "applications": {
     "gecko": {
-      "id": "nightly-js-errors@mozilla.org"
+      "id": "nightly-js-errors@mkelly.me"
     }
   },
   "content_scripts": [
