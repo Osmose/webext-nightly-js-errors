@@ -1,0 +1,15 @@
+{
+  "manifest_version": 2,
+  "name": "Nightly JS Errors Sentry Improvements",
+  "version": "0.1",
+  "description": "Improves the Sentry UI for the Nightly JS Errors project.",
+  "content_scripts": [
+    {
+      "matches": ["https://sentry.prod.mozaws.net/operations/nightly-js-errors/issues/*"],
+      "js": ["utils.js", "issue.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    "bugzilla.png"
+  ]
+}
