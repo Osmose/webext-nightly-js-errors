@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
-  "name": "Nightly JS Errors Sentry Improvements",
+  "name": "Browser Error Collection Sentry Improvements",
   "version": "0.1",
-  "description": "Improves the Sentry UI for the Nightly JS Errors project.",
+  "description": "Improves the Sentry UI for the Browser Error Collection project.",
   "content_scripts": [
     {
       "matches": ["https://sentry.prod.mozaws.net/operations/nightly-js-errors/issues/*"],
