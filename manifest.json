@@ -1,18 +1,25 @@
 {
   "manifest_version": 2,
   "name": "Browser Error Collection Sentry Improvements",
-  "version": "0.2",
+  "version": "0.2.1",
   "description": "Improves the Sentry UI for the Browser Error Collection project.",
   "applications": {
     "gecko": {
       "id": "nightly-js-errors@mkelly.me"
     }
   },
+  "background": {
+    "scripts": ["background.js"]
+  },
   "content_scripts": [
     {
-      "matches": ["https://sentry.prod.mozaws.net/operations/nightly-js-errors/issues/*"],
-      "js": ["utils.js", "issue.js"]
+      "matches": ["https://sentry.prod.mozaws.net/*"],
+      "js": ["content.js"]
     }
+  ],
+  "permissions": [
+    "https://sentry.prod.mozaws.net/*",
+    "webNavigation"
   ],
   "web_accessible_resources": [
     "bugzilla.png"
