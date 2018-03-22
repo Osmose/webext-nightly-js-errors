@@ -19,6 +19,7 @@
   ],
   "permissions": [
     "https://sentry.prod.mozaws.net/*",
+    "https://bugzilla.mozilla.org/*",
     "webNavigation"
   ],
   "web_accessible_resources": [
