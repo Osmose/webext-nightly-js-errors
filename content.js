@@ -20,7 +20,9 @@ const sentry = {
   async getIssue(issueId) {
     if (!this.issueCache.has(issueId)) {
       const issue = await this._get(`https://sentry.prod.mozaws.net/api/0/issues/${issueId}/`);
-      this.issueCache.set(issueId, issue);
+      if (issue) {
+        this.issueCache.set(issueId, issue);
+      }
     }
     return this.issueCache.get(issueId);
   },
@@ -33,7 +35,9 @@ const sentry = {
         `${issueId}/events/${eventId}/json/`
       );
       const event = await this._get(url);
-      this.eventCache.set(key, event);
+      if (event) {
+        this.eventCache.set(key, event);
+      }
     }
     return this.eventCache.get(key);
   },
@@ -92,19 +96,21 @@ const bugzilla = {
 
     let comment = `This bug was automatically filed from Sentry: ${commentUrl}\n\n`;
 
-    const exception = event["sentry.interfaces.Exception"];
-    if (exception) {
-      const exceptionValue = exception.values[0];
-      comment += `${exceptionValue.type}: ${exceptionValue.value}`;
-      const stacktrace = exceptionValue.stacktrace;
-      if (stacktrace) {
-        stacktrace.frames.reverse();
-        for (const frame of stacktrace.frames) {
-          comment += `\n    at ${frame.function}(${frame.module}:${frame.lineno}:${frame.colno})`;
+    if (event) {
+      const exception = event["sentry.interfaces.Exception"];
+      if (exception) {
+        const exceptionValue = exception.values[0];
+        comment += `${exceptionValue.type}: ${exceptionValue.value}`;
+        const stacktrace = exceptionValue.stacktrace;
+        if (stacktrace) {
+          stacktrace.frames.reverse();
+          for (const frame of stacktrace.frames) {
+            comment += `\n    at ${frame.function}(${frame.module}:${frame.lineno}:${frame.colno})`;
+          }
         }
+      } else {
+        comment += event.message;
       }
-    } else {
-      comment += event.message;
     }
 
     const whiteboardTags = {
@@ -113,7 +119,7 @@ const bugzilla = {
 
     const url = new URL('https://bugzilla.mozilla.org/enter_bug.cgi');
     const params = {
-      short_desc: issue.title,
+      short_desc: issue ? issue.title : '',
       comment,
       component: 'General',
       product: 'Firefox',
