@@ -2,6 +2,12 @@ const ISSUE_URL_REGEX = (
   /^https:\/\/sentry.prod.mozaws.net\/operations\/nightly-js-errors\/issues\/([0-9]+)\/(?:events\/([0-9]+)\/)?/
 );
 
+const PRODUCT_COMPONENTS = [
+  ['Firefox', 'General'],
+  ['Toolkit', 'General'],
+  ['Tech Evangelism', 'Add-ons'],
+];
+
 const sentry = {
   issueCache: new Map(),
   eventCache: new Map(),
@@ -85,7 +91,7 @@ const bugzilla = {
     return url.href;
   },
 
-  async getNewBugUrl(issueId, eventId) {
+  async getNewBugUrl(issueId, eventId, product, component) {
     const issue = await sentry.getIssue(issueId);
     const event = await sentry.getEvent(issueId, eventId);
 
@@ -115,18 +121,18 @@ const bugzilla = {
 
     const whiteboardTags = {
       'nightly-js-sentry': issueId,
-    }
+    };
 
     const url = new URL('https://bugzilla.mozilla.org/enter_bug.cgi');
     const params = {
       short_desc: issue ? issue.title : '',
       comment,
-      component: 'General',
-      product: 'Firefox',
+      component,
+      product,
       version: 'Trunk',
       status_whiteboard: Object.entries(whiteboardTags).map(([key, value]) => `[${key}:${value}]`).join(''),
       bug_file_loc: commentUrl,
-    }
+    };
     for (const [key, value] of Object.entries(params)) {
       url.searchParams.set(key, value);
     }
@@ -157,7 +163,7 @@ async function waitForElement(selector) {
 }
 
 let currentIssueId = null;
-let currentButton = null;
+let currentButtonWrapper = null;
 async function modifyPage() {
   const match = window.location.href.match(ISSUE_URL_REGEX);
   if (!match) {
@@ -170,29 +176,32 @@ async function modifyPage() {
   // If moving to a new issue page, create the button for the first time.
   if (issueId !== currentIssueId) {
     const groupActions = await waitForElement('.group-actions');
-    currentButton = await createButton();
-    groupActions.appendChild(currentButton);
+    currentButtonWrapper = document.createElement('span');
+    groupActions.appendChild(currentButtonWrapper);
   }
 
   const bugs = await bugzilla.getBugsForIssue(issueId);
+  if (currentButtonWrapper.lastChild) {
+    currentButtonWrapper.lastChild.remove();
+  }
   if (bugs.length === 1) {
-    currentButton.href = bugzilla.getBugUrl(bugs[0].id);
-    currentButton.querySelector('.button-text').textContent = "View Bugzilla Bug";
+    currentButtonWrapper.appendChild(await createViewBugButton(bugs[0].id));
   } else if (bugs.length > 1) {
-    currentButton.href = bugzilla.getSearchUrl({status_whiteboard: `[nightly-js-sentry:${issueId}]`});
-    currentButton.querySelector('.button-text').textContent = "View Bugzilla Bugs";
+    currentButtonWrapper.appendChild(await createBugSearchButton({
+      status_whiteboard: `[nightly-js-sentry:${issueId}]`,
+    }));
   } else {
-    currentButton.href = await bugzilla.getNewBugUrl(issueId, eventId);
-    currentButton.querySelector('.button-text').textContent = "File Bugzilla Bug";
+    currentButtonWrapper.appendChild(await createNewBugButton(issueId, eventId));
   }
 
   currentIssueId = issueId;
 }
 
-async function createButton() {
+async function createViewBugButton(bugId) {
   const button = document.createElement('a');
   button.className = 'btn btn-default btn-sm btn-bugzilla';
   button.style.marginLeft = '5px';
+  button.href = await bugzilla.getBugUrl(bugId);
 
   const buttonIcon = document.createElement('img');
   buttonIcon.src = browser.extension.getURL('bugzilla.png');
@@ -200,13 +209,84 @@ async function createButton() {
 
   const buttonText = document.createElement('span');
   buttonText.className = 'button-text';
-  buttonText.textContent = 'File Bugzilla Bug'
+  buttonText.textContent = 'View Bugzilla Bug';
   buttonText.style.marginLeft = '5px';
 
   button.appendChild(buttonIcon);
   button.appendChild(buttonText);
 
   return button;
+}
+
+async function createBugSearchButton(params) {
+  const button = document.createElement('a');
+  button.className = 'btn btn-default btn-sm btn-bugzilla';
+  button.style.marginLeft = '5px';
+  button.href = bugzilla.getSearchUrl(params);
+
+  const buttonIcon = document.createElement('img');
+  buttonIcon.src = browser.extension.getURL('bugzilla.png');
+  buttonIcon.style.verticalAlign = 'top';
+
+  const buttonText = document.createElement('span');
+  buttonText.className = 'button-text';
+  buttonText.textContent = 'View Bugzilla Bugs';
+  buttonText.style.marginLeft = '5px';
+
+  button.appendChild(buttonIcon);
+  button.appendChild(buttonText);
+
+  return button;
+}
+
+async function createNewBugButton(issueId, eventId) {
+  const wrapperSpan = document.createElement('span');
+  wrapperSpan.className = 'dropdown';
+
+  const button = document.createElement('a');
+  button.className = 'btn btn-default btn-sm btn-bugzilla';
+  button.style.marginLeft = '5px';
+  button.addEventListener('click', () => {
+    wrapperSpan.classList.toggle('open');
+  });
+
+  const buttonIcon = document.createElement('img');
+  buttonIcon.src = browser.extension.getURL('bugzilla.png');
+  buttonIcon.style.verticalAlign = 'top';
+
+  const buttonText = document.createElement('span');
+  buttonText.className = 'button-text';
+  buttonText.textContent = 'File Bugzilla Bug';
+  buttonText.style.marginLeft = '5px';
+
+  const buttonArrow = document.createElement('span');
+  buttonArrow.className = 'icon-arrow-down';
+
+  button.appendChild(buttonIcon);
+  button.appendChild(buttonText);
+  button.appendChild(buttonArrow);
+  wrapperSpan.appendChild(button);
+
+  const dropdownMenu = document.createElement('ul');
+  dropdownMenu.className = 'dropdown-menu';
+
+  const dropdownHeader = document.createElement('li');
+  dropdownHeader.className = 'dropdown-header';
+  dropdownHeader.textContent = 'File in Product::Component';
+  dropdownMenu.appendChild(dropdownHeader);
+
+  for (const [product, component] of PRODUCT_COMPONENTS) {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.textContent = `${product}::${component}`;
+    a.href = await bugzilla.getNewBugUrl(issueId, eventId, product, component);
+    li.appendChild(a);
+    dropdownMenu.appendChild(li);
+  }
+
+  wrapperSpan.appendChild(dropdownMenu);
+
+  return wrapperSpan;
 }
 
 const port = browser.runtime.connect();
