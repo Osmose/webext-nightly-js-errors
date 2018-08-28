@@ -5,6 +5,7 @@ const ISSUE_URL_REGEX = (
 const PRODUCT_COMPONENTS = [
   ['Firefox', 'General'],
   ['Toolkit', 'General'],
+  ['DevTools', 'General'],
   ['Tech Evangelism', 'Add-ons'],
 ];
 

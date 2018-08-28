@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Browser Error Collection Sentry Improvements",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Improves the Sentry UI for the Browser Error Collection project.",
   "applications": {
     "gecko": {
